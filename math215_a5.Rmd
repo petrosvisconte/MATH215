@@ -1,0 +1,116 @@
+---
+title: "MATH215 - Assignment 5"
+author: "Pierre Visconti"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+# Problem 1:
+```{r}
+pg = read.csv("PanelStudyIncomeDynamics.csv")
+max.salary = max(pg$annlabinc)
+max.salary
+# pg[which(pg$annlabinc==max.salary),] # commented out because of size
+```
+The largest salary is 1,500,000 yearly.
+There are two individuals with this salary. One of them is a male, 53 years old, with 35 years of experience, from the northeast, with occupation code 001. The other is male, 35 years old, with 6 years of experience, from the south, with occupation code 301. 
+Note: I found conflicting information online with the occupation codes so I decided not to include what they could mean. 
+```{r}
+boxplot(annlabinc~sex, data=pg, main="Annual salary versus sex", xlab="sex (1=m, 2=f)")
+```
+```{r}
+quantile(pg$annlabinc)
+IQR=46000-16000
+lower=16000 - 1.5*IQR
+upper = 46000 + 1.5*IQR
+pg.no=pg[which(pg$annlabinc <= upper),] # no need for lower bound
+# since it is negative and the min salary is 30.
+```
+```{r}
+boxplot(annlabinc~sex, data=pg.no, main="Annual salary versus sex", xlab="sex (1=m, 2=f)")
+```
+The mean salary for males appears to be slightly higher than for females. In fact the entire 1st to 3rd quartile range is shifted up higher for the males in comparison with the females. What is note worthy is that in this boxplot comparison the males have no outliers while the females do which means that there are salaries on the upper end for males that are considered within the range and not outliers while the same salary for females is considered as an outlier. 
+
+Two tailed test for mean with two populations:
+```{r}
+t.test(annlabinc~sex, data=pg.no,alternative="two.sided")
+```
+Our p-value is extremely small which means there is strong statistical evidence to reject the null hypothesis that the mean annual salaries between males and females are the same.  
+
+# Problem 2
+```{r}
+t.test(annhrs~sex, data=pg.no, alternative="two.sided")
+```
+The p-value is very small which means that there is strong statistical evidence to reject the null hypothesis that the mean annual working hours between males and females are the same. This does not effect the conclusion from the previous test, yet it could explain why the mean salaries may not be the same. 
+```{r}
+plot(annlabinc~annhrs, data=pg.no, main="Annual salary versus hours worked")
+```
+It's pretty hard to say whether a relationship exists from looking at this scatter plot. There does seem to be a relationship for the first few thousand hours but then the data is all over the place and the scale of the plot makes it hard to clearly see. If we look at the lowest income levels though, we can see them slowly increase with labor hours. This contributes to our understanding of the gender pay gap by guiding us in a direction for further testing.
+
+# Problem 3
+```{r}
+ind = unique(pg.no$ind2)
+ind
+p.val.vec = c(1:(length(ind)))
+index=1
+for (i in ind) {
+  #print(i)
+  pg.temp = pg.no[which(pg.no$ind2 == i),]
+  boxplot(annlabinc~sex, data=pg.temp, main=paste("Industry", i, sep=" "))
+  print(t.test(annlabinc~sex, data=pg.temp,alternative="two.sided"))
+  p.val.vec[index]=t.test(annlabinc~sex,data=pg.temp,alternative="two.sided")$p.value
+  index = index + 1
+}
+print(p.val.vec)
+```
+
+This analysis tells us that for every industry present we can reject the null hypothesis that the mean annual salaries between both sex are the same. This also tells us that in this case we are not seeing Simpson's Paradox unlike with the UC Berkley dataset. 
+
+# Problem 4
+```{r}
+library(vcd)
+austin = read.csv("Austin_Profiling.csv")
+mosaic(PERSON_SEARCHED~apd.race, data=austin)
+my.table <- table(austin$apd.race,austin$PERSON_SEARCHED)
+
+```
+```{r}
+my.results = chisq.test(my.table)
+my.results
+```
+The p-value is very small so we can reject the null hypothesis that proportion of searched to not searched is the same for every each race. I got a warning that states that the "Chi-squared approximation may be incorrect."
+```{r}
+my.results$expected
+```
+The conditions appear to be violated for races I and P. 
+```{r}
+austin.new = austin[which(austin$apd.race=='A' | austin$apd.race=='B' | austin$apd.race=='H' | austin$apd.race=='W'),]
+my.table.new <- table(austin.new$apd.race,austin.new$PERSON_SEARCHED)
+my.results.new = chisq.test(my.table.new)
+my.results.new
+my.results.new$expected
+```
+The warning is now gone. The assumption of sufficiently large data is satisfied as can be seen by checking the new expected values table. All that we can conclude is that the proportion of search to not-searched is not the same for every race. In other words, at least one race has a proportion that is different than the others. We arrive to this conclusion since the p-value is very small and we reject the null hypothesis that all the proportions of searched to not-searched are the same between all races. 
+
+```{r}
+pairwise.prop.test(my.table.new)
+```
+The p-values are small enough for every cell which indicates that there is a statistically significant difference among every race in the proportion of searched to not searched. 
+
+```{r}
+non.search = my.table.new[,"NO = 2"]
+search = my.table.new[,"YES = 1"]
+index = 1
+for (i in non.search) {
+  print(search[index] / i)
+  index = index +1
+}
+
+```
+The differences do not seem significant to me for several reasons. The differences are in the hundredth decimal place which is pretty insignificant. Second, the populations are not massive. If there were billions of people getting searched then I think it could be argued that the differences are significant as there would be a lot more people who identify as B or H getting searched than W or A (relative to their population size). But I do not think the population of people getting searched are large enough for it to be considered significant. 
+
+
+
+
+
+
