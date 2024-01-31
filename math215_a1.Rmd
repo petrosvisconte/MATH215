@@ -1,0 +1,103 @@
+---
+title: "MATH215 Assignment 1"
+author: "Pierre Visconti"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# Problem 1:
+```{r}
+help("AirPassengers")
+class(AirPassengers)
+str(AirPassengers)
+summary(AirPassengers)
+```
+The values in this dataset represent monthly total of international airline passengers in thousands from 1949 to 1960.
+The class command returns the value ts which means that the dataset is a time series. The str command also confirms it as a time series with a range of 1:144, meaning the dataset has 144 rows, or in other words: has a length of 144.This command also prints out some of the first rows of the dataset which shows us that there is a single number for each row, meaning we can treat this dataset as a vector since it has only a single column.  
+The summary command gives us the statistics of a box plot for the dataset. With this command we now know the median, the range where most of the data falls into (1st quartile to 3rd quartile), and the maximum values (which in this case shows us that there are some extreme outliers). 
+
+```{r}
+in.1950 = AirPassengers[13:24]
+print(in.1950)
+```
+```{r}
+total.1950 = sum(in.1950)
+print(total.1950)
+```
+```{r}
+which.max(in.1950)
+which.max(in.1950%%1000000)
+```
+# Problem 2:
+```{r}
+mon = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+Mon = rep(mon, 12)
+pass = as.vector(AirPassengers)
+air.data = data.frame(pass, Mon)
+colnames(air.data) = c("Passengers", "Month")
+boxplot(Passengers~Month, data=air.data, main="Number of Passengers per Month", col= c("pink", "green"), las=2)
+```
+The practice of hiring extra personnel and ordering additional supplies to accommodate a higher number of passengers for the month of December was not justified as there was not a particularly larger number of passengers travelling that month compared to the other months of the year. In fact, December had much lower rates of travel compared to months like August and July. 
+
+# Problem 3:
+```{r}
+marathon = read.csv("marathon_results_2015.csv")
+mean(marathon$Official.Time)
+class(marathon$Official.Time)
+print(marathon$Official.Time[1:10])
+```
+The mean command does not work because Official.Time contains characters and not numbers. By printing the first 10 indexes we can see that each entry is contained within quotation marks, indicating they are strings and not numbers. 
+```{r}
+temp = marathon$Official.Time[1]
+temp2 = strptime(temp, "%H:%M:%S")
+temp3 = format(strptime(temp, "%H:%M:%S"), "%H")
+tempH <- as.numeric(format(strptime(temp,"%H:%M:%S"),"%H"))
+print(temp)
+print(temp2)
+print(temp3)
+print(tempH)
+```
+temp, temp2, and temp3 are all character objects. tempH is a numerical object. The first command for temp2 added a date to the original value. The second command only assigned what was in the "H" section of the character to temp3, as was defined by "%H:%M:%S". The last command does the same thing as the second but then converts it into a numerical object and assigns it to tempH. 
+```{r}
+tempM = as.numeric(format(strptime(temp,"%H:%M:%S"),"%M"))
+tempS = as.numeric(format(strptime(temp,"%H:%M:%S"),"%S"))
+tempFinal = tempH + tempM/60 + tempS/60/60
+print(tempFinal)
+```
+```{r}
+convert = function(x) {
+  x.H = as.numeric(format(strptime(x,"%H:%M:%S"),"%H"))
+  x.M = as.numeric(format(strptime(x,"%H:%M:%S"),"%M"))
+  x.S = as.numeric(format(strptime(x,"%H:%M:%S"),"%S"))
+  return(x.H + x.M/60 + x.S/60/60)
+  
+}
+marathon$New.Time = sapply(marathon$Official.Time,FUN=convert, USE.NAMES=FALSE)
+mean(marathon$New.Time, na.rm = T)
+```
+
+# Problem 4:
+```{r}
+unique(marathon$Country)
+length(unique(marathon$Country))
+runners = rep(0, nrow(marathon))
+(length(runners[which(marathon$Country=="USA")]) / length(marathon$Country)) * 100
+
+```
+There are 79 countries present in the data and 82.26% of runners are domestic. 
+```{r}
+runners[which(marathon$Country=="USA")] = 1
+marathon.ID = data.frame(domestic=runners, time=marathon$New.Time)
+
+summary(marathon.ID$time[marathon.ID$domestic==0])
+summary(marathon.ID$time[marathon.ID$domestic==1])
+
+
+boxplot(time ~ domestic, data=marathon.ID, na.rm=T, main="Time Versus Non-Domestic and Domestic Runners", xlab="Domestic (0=False, 1=True)", ylab="Time", col=c("pink","lightgreen"))
+
+```
+The belief that non-domestic runners are faster than domestic runners is indeed true, as supported by the data set. The median times for both groups is actually very close as well as where the majority of runners fall into for both groups. The domestic group had outliers that were much slower than the outliers from the non-domestic group which could help support the theory that only more professional/serious runners make up the non-domestic group. 
+
+
+

@@ -1,0 +1,181 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+  word_document: default
+---
+
+# import libraries
+```{r}
+library(class)
+library(chemometrics)
+library(boot)
+library(tree)
+#library(tidyverse)
+library(vcd)
+```
+
+# import data and filter
+```{r}
+data = read.csv("healthcare-dataset-stroke-data.csv")
+stroke = data.frame(data)
+stroke$gender[stroke$gender=='Male'] = 1
+stroke$gender[stroke$gender=='Female'] = 0
+stroke$ever_married[stroke$ever_married=='Yes'] = 1
+stroke$ever_married[stroke$ever_married=='No'] = 0
+stroke$Residence_type[stroke$Residence_type=='Urban'] = 1
+stroke$Residence_type[stroke$Residence_type=='Rural'] = 0
+stroke = stroke[-which(stroke$gender=='Other'),]
+stroke = stroke[-which(stroke$bmi=='N/A'),]
+stroke$bmi = as.numeric(stroke$bmi)
+```
+
+# KNN model to predict stroke
+Requires: data, libraries
+TODO: randomly choose nonstroke people and loop over several times choosing different people each time
+```{r}
+stroke.knn = stroke[-c(500:nrow(stroke)),]
+# convert variables to numeric
+stroke.knn$gender = as.numeric(stroke.knn$gender)
+stroke.knn$hypertension = as.numeric(stroke.knn$hypertension)
+stroke.knn$heart_disease = as.numeric(stroke.knn$heart_disease)
+stroke.knn$ever_married = as.numeric(stroke.knn$ever_married)
+stroke.knn$Residence_type = as.numeric(stroke.knn$Residence_type)
+# create training and testing datasets
+train.size = round(nrow(stroke.knn)*0.8)
+train.ind = sample(1:nrow(stroke.knn), train.size)
+training = stroke.knn[train.ind,]
+testing = stroke.knn[-train.ind,]
+
+knnEval(scale(stroke.knn[,c(2,3,4,5,6,9,10)]), as.factor(stroke.knn$stroke), train.ind, kfold=10, knnvec=seq(1,50, by=1))
+
+# predict using KNN
+predictions = knn(scale(training[,c(2,3,4,5,6,9,10)]), scale(testing[,c(2,3,4,5,6,9,10)]), training$stroke, k=10)
+#predictions
+#testing$stroke
+
+# compute accuracy
+accuracy = sum(predictions==testing$stroke)/length(predictions)
+cat("Accuracy:\n")
+accuracy
+#which(predictions==1)
+#length(which(predictions==1))
+cat("Predictions:\n")
+predictions
+#which(testing$stroke==1)
+#length(which(testing$stroke==1))
+cat("Actual values:\n")
+testing$stroke
+```
+# linear model to predict age
+Requires: data, libraries
+```{r}
+stroke.lm = stroke
+inds = sample(1:nrow(stroke.lm), round(nrow(stroke.lm)/2))
+train = stroke.lm[inds,]
+test = stroke.lm[-inds,]
+super.model = lm(age~gender+hypertension+heart_disease+ever_married+
+                   work_type+Residence_type+avg_glucose_level+smoking_status+
+                   stroke+bmi,data=train)
+basic.model = lm(age~hypertension+heart_disease+ever_married+work_type+
+                   avg_glucose_level+smoking_status+stroke,data=train)
+summary(super.model)
+summary(basic.model)
+
+# How good are these models on the training data
+cat("supermodel error on training data: \n")
+mean((predict(super.model)-train$age)^2)
+cat("basicmodel error on training data: \n")
+mean((predict(basic.model)-train$age)^2)
+# How good are these models on the testing data
+cat("supermodel error on testing data: \n")
+mean((predict(super.model, newdata=test)-test$age)^2)
+cat("basicmodel error on testing data: \n")
+mean((predict(basic.model, newdata=test)-test$age)^2)
+```
+
+
+# KNN model to predict if ever_married
+Requires: data, libraries
+```{r}
+stroke.knn = stroke
+# convert variables to numeric
+stroke.knn$gender = as.numeric(stroke.knn$gender)
+stroke.knn$hypertension = as.numeric(stroke.knn$hypertension)
+stroke.knn$heart_disease = as.numeric(stroke.knn$heart_disease)
+stroke.knn$Residence_type = as.numeric(stroke.knn$Residence_type)
+# create training and testing datasets
+train.size = round(nrow(stroke.knn)*0.8)
+train.ind = sample(1:nrow(stroke.knn), train.size)
+training = stroke.knn[train.ind,]
+testing = stroke.knn[-train.ind,]
+
+#knnEval(stroke.knn[,c(2,3,4,5,9,10)], as.factor(stroke.knn$ever_married), train.ind, kfold=10, knnvec=seq(1,50, by=1))
+
+
+# predict using KNN
+predictions = knn(scale(training[,c(2,3,4,5,8,9,10)]), scale(testing[,c(2,3,4,5,8,9,10)]), training$ever_married, k=10)
+cat("Predictions:\n")
+predictions
+cat("Actual values:\n")
+testing$ever_married
+
+# compute accuracy
+accuracy = sum(predictions==testing$ever_married)/length(predictions)
+cat("Accuracy:\n")
+accuracy
+```
+
+
+# logistic model to predict stroke
+Requires: data, libraries
+```{r}
+stroke.glm = stroke
+stroke.glm$smoking_status[which(stroke.glm$smoking_status=='smokes' | stroke.glm$smoking_status=='formerly smoked')] = 1
+stroke.glm$smoking_status[which(stroke.glm$smoking_status!=1)] = 0
+
+inds = sample(1:nrow(stroke.glm), round(nrow(stroke.glm)/2))
+train = stroke.glm[inds,]
+test = stroke.glm[-inds,]
+super.model = glm(stroke~gender+hypertension+heart_disease+ever_married+
+                    work_type+Residence_type+avg_glucose_level+smoking_status+
+                    age+bmi,data=train, family=binomial(logit))
+basic.model = glm(stroke~hypertension+avg_glucose_level+smoking_status+
+                    age,data=train, family=binomial(logit))
+summary(super.model)
+summary(basic.model)
+```
+
+# Analyzing results from logistic regression
+Requires: logistic model, data, libraries
+```{r}
+# age
+boxplot(age~stroke, data=stroke.glm)
+t.test(age~stroke, data=stroke.glm)
+
+# avg_glucose_level
+boxplot(avg_glucose_level~stroke, data=stroke.glm)
+t.test(avg_glucose_level~stroke, data=stroke.glm)
+
+# smokes
+mosaic(smoking_status~stroke, data=stroke.glm)
+smoke.table = table(stroke.glm$stroke, stroke.glm$smoking_status)
+prop.test(smoke.table)
+
+# hypertension
+mosaic(hypertension~stroke, data=stroke.glm)
+ht.table = table(stroke.glm$hypertension, stroke.glm$stroke)
+prop.test(ht.table)
+```
+# ignore for now
+
+```{r}
+tr.age = tree(stroke~age, data=stroke.glm)
+stroke.glm$stroke = as.factor(stroke.glm$stroke)
+plot(tr.age)
+text(tr.age)
+```
+
+
+
